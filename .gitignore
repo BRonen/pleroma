@@ -1,0 +1,6 @@
+.direnv/
+.gradle/
+kotlinc/
+.kotlin/
+**/build/
+*.log
