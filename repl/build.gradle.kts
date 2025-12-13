@@ -10,3 +10,7 @@ dependencies {
 application {
     mainClass = "pleroma.repl.ReplKt"
 }
+
+tasks.withType<JavaExec> {
+    standardInput = System.`in`
+}
