@@ -10,8 +10,20 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
+        testScript = pkgs.writeShellScriptBin "test" ''
+          ${pkgs.gradle}/bin/gradle test
+        '';
       in
       {
+        apps.test = {
+          type = "app";
+          buildInputs = with pkgs;[
+            pkgs.gradle
+            pkgs.openjdk21
+            pkgs.kotlin
+          ];
+          program = "${testScript}/bin/test";
+        };
         devShells.default = pkgs.mkShell {
           buildInputs = [
             pkgs.gradle

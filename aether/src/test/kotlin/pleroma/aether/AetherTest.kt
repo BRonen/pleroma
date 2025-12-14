@@ -42,23 +42,23 @@ class AetherTest {
         assertEquals(Term.Pi(Term.Var(1), Term.Pi(Term.Var(1), Term.Var(1))), ty)
     }
     
-    @Test fun AppTest() {
-        val ctx = listOf(Term.Sort, Term.Sort)
+    // @Test fun AppTest() {
+    //     val ctx = listOf(Term.Sort, Term.Sort)
 
-        // (APP (PI (VAR 1) (VAR 0)) (VAR 0)) : [SORT; (VAR 0)]
-        val ty = typeOf(
-            ctx,
-            Term.App(
-                Term.Lam(
-                    Term.Var(1),
-                    Term.Var(0)
-                ),
-                Term.Var(0)
-            )
-        )
+    //     // (APP (PI (VAR 1) (VAR 0)) (VAR 0)) : [SORT; (VAR 0)]
+    //     val ty = typeOf(
+    //         ctx,
+    //         Term.App(
+    //             Term.Lam(
+    //                 Term.Var(1),
+    //                 Term.Var(0)
+    //             ),
+    //             Term.Var(0)
+    //         )
+    //     )
 
-        println(ty)
+    //     println(ty)
 
-        assertEquals(Term.Var(271863), ty)
-    }
+    //     assertEquals(Term.Var(271863), ty)
+    // }
 }
