@@ -3,4 +3,4 @@ plugins {
 }
 
 rootProject.name = "pleroma"
-include("repl", "list", "utils")
+include("repl", "aether", "list", "utils")
