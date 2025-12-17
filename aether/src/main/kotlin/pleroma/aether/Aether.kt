@@ -1,166 +1,116 @@
 package pleroma.aether
 
+import kotlin.math.*
+
 sealed class Term {
-    data class Var(val index: Int) : Term()
-
-    object Sort : Term() {
-        override fun toString() = "Sort"
-    }
-
-    data class Pi(val paramType: Term, val body: Term) : Term()
-
-    data class Lam(val paramType: Term, val body: Term) : Term()
-
-    data class App(val fn: Term, val arg: Term) : Term()
+    data class Sort(val uni: Int) : Term()
+    data class Const(val name: String) : Term()
+    data class Num(val value: Int) : Term()
+    data class Str(val value: String) : Term()
+    data class Var(val i: Int) : Term()
+    data class Pi(val t: Term, val body: Term) : Term()
+    data class Abs(val t: Term, val body: Term) : Term()
+    data class App(val f: Term, val arg: Term) : Term()
 }
 
+typealias Ctx = List<Term>
 
-typealias Context = List<Term>
+// (shift ( . ( . #2)) t) -> ( . #1)
+// (shift ( . ( . #0)) t) -> ( . #0)
 
-fun Context.lookup(i: Int): Term =
-    this[this.size - 1 - i]
-
-fun shift(term: Term, by: Int, cutoff: Int = 0): Term =
+fun shift(term: Term, v: Int, i: Int = 0): Term =
     when (term) {
-        is Term.Var ->
-            if (term.index >= cutoff)
-                Term.Var(term.index + by)
-            else
-                term
-
-        is Term.Sort -> Term.Sort
-
-        is Term.Pi ->
-            Term.Pi(
-                shift(term.paramType, by, cutoff),
-                shift(term.body, by, cutoff + 1)
-            )
-
-        is Term.Lam ->
-            Term.Lam(
-                shift(term.paramType, by, cutoff),
-                shift(term.body, by, cutoff + 1)
-            )
-
-        is Term.App ->
-            Term.App(
-                shift(term.fn, by, cutoff),
-                shift(term.arg, by, cutoff)
-            )
-    }
-
-fun subst(term: Term, j: Int, s: Term): Term =
-    when (term) {
-        is Term.Var ->
-            when {
-                term.index == j -> s
-                term.index > j -> Term.Var(term.index - 1)
-                else -> term
-            }
-
-        is Term.Sort -> Term.Sort
-
-        is Term.Pi ->
-            Term.Pi(
-                subst(term.paramType, j, s),
-                subst(term.body, j + 1, shift(s, 1))
-            )
-
-        is Term.Lam ->
-            Term.Lam(
-                subst(term.paramType, j, s),
-                subst(term.body, j + 1, shift(s, 1))
-            )
-
-        is Term.App ->
-            Term.App(
-                subst(term.fn, j, s),
-                subst(term.arg, j, s)
-            )
-    }
-
-fun whnf(term: Term): Term =
-    when (term) {
-        is Term.App -> {
-            val fn = whnf(term.fn)
-            if (fn is Term.Lam) {
-                whnf(subst(fn.body, 0, shift(term.arg, 1)))
-            } else {
-                Term.App(fn, term.arg)
-            }
-        }
+        is Term.Var -> if (term.i >= i) Term.Var(term.i + v) else term
+        is Term.Pi -> Term.Pi(shift(term.t, v, i), shift(term.body, v, i + 1))
+        is Term.Abs -> Term.Abs(shift(term.t, v, i), shift(term.body, v, i + 1))
+        is Term.App -> Term.App(shift(term.f, v, i), shift(term.arg, v, i))
         else -> term
     }
 
+fun subst(term: Term, i: Int, s: Term): Term =
+    when (term) {
+        is Term.Var ->
+            when {
+                term.i == i -> s
+                term.i > i -> Term.Var(term.i - 1)
+                else -> term
+            }
+        is Term.Pi -> Term.Pi(subst(term.t, i, s), subst(term.body, i + 1, shift(s, 1)))
+        is Term.Abs -> Term.Abs(subst(term.t, i, s), subst(term.body, i + 1, shift(s, 1)) )
+        is Term.App -> Term.App(subst(term.f, i, s), subst(term.arg, i, s))
+        else -> term
+    }
+
+fun whnf(term: Term): Term =
+    if (term is Term.App) {
+        val f = whnf(term.f)
+        if (f is Term.Abs) {
+            whnf(subst(f.body, 0, shift(term.arg, 1)))
+        } else {
+            Term.App(f, term.arg)
+        }
+    } else term
+
 fun normalize(term: Term): Term =
     when (term) {
-        is Term.Var -> term
-        is Term.Sort -> Term.Sort
-        is Term.Pi ->
-            Term.Pi(
-                normalize(term.paramType),
-                normalize(term.body)
-            )
-        is Term.Lam ->
-            Term.Lam(
-                normalize(term.paramType),
-                normalize(term.body)
-            )
         is Term.App -> {
             val t = whnf(term)
             if (t is Term.App)
-                Term.App(normalize(t.fn), normalize(t.arg))
+                Term.App(normalize(t.f), normalize(t.arg))
             else
                 normalize(t)
         }
+        is Term.Pi -> Term.Pi(normalize(term.t), normalize(term.body))
+        is Term.Abs -> Term.Abs(normalize(term.t), normalize(term.body))
+        else -> term
     }
 
-fun defEq(a: Term, b: Term): Boolean {
+fun cmp(a: Term, b: Term): Boolean {
     return normalize(a) == normalize(b)
 }
 
-fun typeOf(ctx: Context, term: Term): Term =
+fun typeOf(ctx: Ctx, term: Term): Term =
     when (term) {
-
-        is Term.Sort -> Term.Sort
-
-        is Term.Var -> ctx.lookup(term.index)
+        is Term.Sort -> Term.Sort(term.uni + 1)
+        is Term.Const -> Term.Sort(0)
+        is Term.Num -> Term.Const("number")
+        is Term.Str -> Term.Const("string")
+        is Term.Var -> ctx[ctx.lastIndex - term.i]
 
         is Term.Pi -> {
-            val aType = typeOf(ctx, term.paramType)
-            if (!defEq(aType, Term.Sort))
+            val t = typeOf(ctx, term.t)
+            if (t !is Term.Sort)
                 throw RuntimeException("Pi parameter is not a type")
 
-            val bodyType =
-                typeOf(ctx + term.paramType, term.body)
+            val body = typeOf(ctx + term.t, term.body)
 
-            if (!defEq(bodyType, Term.Sort))
+            if (body !is Term.Sort)
                 throw RuntimeException("Pi body is not a type")
 
-            Term.Sort
+            Term.Sort(max(t.uni, body.uni))
         }
 
-        is Term.Lam -> {
-            val paramTypeType = typeOf(ctx, term.paramType)
-            if (!defEq(paramTypeType, Term.Sort))
+        is Term.Abs -> {
+            val t = typeOf(ctx, term.t)
+            if (t !is Term.Sort)
                 throw RuntimeException("Lambda parameter type is not a type")
 
-            val bodyType = typeOf(ctx + term.paramType, term.body)
+            val body = typeOf(ctx + term.t, term.body)
 
-            Term.Pi(term.paramType, bodyType)
+            Term.Pi(term.t, body)
         }
 
         is Term.App -> {
-            val fnType = normalize(typeOf(ctx, term.fn))
+            val f = typeOf(ctx, term.f)
 
-            if (fnType !is Term.Pi)
+            if (f !is Term.Pi)
                 throw RuntimeException("Applying non-function")
 
-            val argType = typeOf(ctx, term.arg)
+            val arg = typeOf(ctx, term.arg)
 
-            if (!defEq(argType, fnType.paramType))
-                throw RuntimeException("Argument type mismatch: " + argType + " != " + fnType.paramType)
+            if (!cmp(arg, f.t))
+                throw RuntimeException("Argument type mismatch: " + arg + " != " + f.t)
 
-            subst(fnType.body, 0, shift(term.arg, 1))
+            normalize(subst(f.body, 0, shift(term.arg, 1)))
         }
     }
