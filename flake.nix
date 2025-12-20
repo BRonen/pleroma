@@ -13,6 +13,11 @@
         testScript = pkgs.writeShellScriptBin "test" ''
           ${pkgs.gradle}/bin/gradle test
         '';
+
+        # kotlinLspPatch = pkgs.writeShellScriptBin "kotlin-language-server" ''
+        #   JAVA_OPTS="-Xms1g -Xmx2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication" \
+        #   exec ${pkgs.kotlin-language-server}/bin/kotlin-language-server
+        # '';
       in
       {
         apps.test = {
@@ -29,7 +34,8 @@
             pkgs.gradle
             pkgs.openjdk21
             pkgs.kotlin
-            pkgs.kotlin-language-server
+            pkgs.ktlint
+            # kotlinLspPatch
           ];
 
           shellHook = ''
