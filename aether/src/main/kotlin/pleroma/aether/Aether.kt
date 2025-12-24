@@ -21,97 +21,68 @@ sealed class Term {
 }
 
 typealias Ctx = List<Term>
-typealias Env = Map<String, Term>
+
+data class EnvEntry(val t: Term, val v: Term? = null)
+
+typealias Env = Map<String, EnvEntry>
 
 fun shift(
     term: Term,
-    v: Int,
-    i: Int = 0,
+    d: Int,
+    cutoff: Int = 0,
 ): Term =
     when (term) {
-        is Term.Var -> if (term.i >= i) Term.Var(term.i + v) else term
-        is Term.Pi -> Term.Pi(shift(term.t, v, i), shift(term.body, v, i + 1))
-        is Term.Abs -> Term.Abs(shift(term.t, v, i), shift(term.body, v, i + 1))
-        is Term.App -> Term.App(shift(term.f, v, i), shift(term.arg, v, i))
+        is Term.Var -> if (term.i >= cutoff) Term.Var(term.i + d) else term
+        is Term.Pi -> Term.Pi(shift(term.t, d, cutoff), shift(term.body, d, cutoff + 1))
+        is Term.Abs -> Term.Abs(shift(term.t, d, cutoff), shift(term.body, d, cutoff + 1))
+        is Term.App -> Term.App(shift(term.f, d, cutoff), shift(term.arg, d, cutoff))
         else -> term
     }
 
 fun subst(
     term: Term,
-    i: Int,
-    s: Term,
+    j: Int,
+    r: Term,
 ): Term =
     when (term) {
         is Term.Var ->
-            when {
-                term.i == i -> s
-                term.i > i -> Term.Var(term.i - 1)
-                else -> term
-            }
-        is Term.Pi -> Term.Pi(subst(term.t, i, s), subst(term.body, i + 1, shift(s, 1)))
-        is Term.Abs -> Term.Abs(subst(term.t, i, s), subst(term.body, i + 1, shift(s, 1)))
-        is Term.App -> Term.App(subst(term.f, i, s), subst(term.arg, i, s))
-        else -> term
-    }
-
-fun whnf(
-    env: Env,
-    term: Term,
-): Term {
-    println("[whnf] term -> " + term)
-    return when (term) {
-        is Term.Const -> {
-            val freevar = env[term.name]
-            if (freevar != null) whnf(env, freevar) else term
-        }
-
-        is Term.App -> {
-            val f = whnf(env, term.f)
-            if (f is Term.Abs) {
-                println("[whnf] f.body -> " + f.body)
-                println("[whnf] term.arg -> " + term.arg)
-                println("[whnf] r -> " + subst(f.body, 0, shift(term.arg, 1)))
-                whnf(env, subst(f.body, 0, shift(term.arg, 1)))
+            if (term.i == j) {
+                r
+            } else if (term.i > j) {
+                Term.Var(term.i - 1)
             } else {
-                Term.App(f, term.arg)
+                term
             }
-        }
-
+        is Term.Pi -> Term.Pi(subst(term.t, j, r), subst(term.body, j + 1, shift(r, 1)))
+        is Term.Abs -> Term.Abs(subst(term.t, j, r), subst(term.body, j + 1, shift(r, 1)))
+        is Term.App -> Term.App(subst(term.f, j, r), subst(term.arg, j, r))
         else -> term
     }
-}
 
 fun normalize(
     env: Env,
     term: Term,
-): Term {
-    return when (term) {
+): Term =
+    when (term) {
         is Term.App -> {
-            val t = whnf(env, term)
-            if (t is Term.App) {
-                Term.App(normalize(env, t.f), normalize(env, t.arg))
-            } else {
-                normalize(env, t)
-            }
+            val f = normalize(env, term.f)
+            val arg = normalize(env, term.arg)
+            if (f is Term.Abs) normalize(env, subst(f.body, 0, arg)) else Term.App(f, arg)
+        }
+        is Term.Const -> {
+            val d = env[term.name]
+            if (d?.v != null) normalize(env, d.v) else term
         }
         is Term.Pi -> Term.Pi(normalize(env, term.t), normalize(env, term.body))
         is Term.Abs -> Term.Abs(normalize(env, term.t), normalize(env, term.body))
         else -> term
     }
-}
 
 fun cmp(
     env: Env,
     a: Term,
     b: Term,
-): Boolean {
-    println("[cmp] a -> " + a)
-    println("[cmp] b -> " + b)
-    println("[cmp] normalize(env, a) -> " + normalize(env, a))
-    println("[cmp] normalize(env, b) -> " + normalize(env, b))
-    println("[cmp] normalize(env, a) == normalize(env, b) -> " + (normalize(env, a) == normalize(env, b)))
-    return normalize(env, a) == normalize(env, b)
-}
+): Boolean = normalize(env, a) == normalize(env, b)
 
 fun typeOf(
     env: Env,
@@ -123,34 +94,26 @@ fun typeOf(
         is Term.Str -> Term.Const("string")
 
         is Term.Sort -> Term.Sort(term.uni + 1)
-        is Term.Var -> ctx[ctx.lastIndex - term.i]
+        is Term.Var -> shift(ctx[ctx.lastIndex - term.i], term.i + 1)
 
         is Term.Const -> {
-            val freevar = env[term.name]
-            if (freevar == null) throw RuntimeException("Unknown constant: ${term.name}")
-            freevar
+            val d = env[term.name]
+            if (d != null) d.t else term
         }
 
         is Term.Pi -> {
-            val t = typeOf(env, ctx, term.t)
-            if (t !is Term.Sort) {
-                throw RuntimeException("Pi parameter is not a type")
-            }
+            val t = normalize(env, typeOf(env, ctx, term.t))
+            if (t !is Term.Sort) throw RuntimeException("Pi parameter is not a type")
 
-            val body = typeOf(env, ctx + term.t, term.body)
-
-            if (body !is Term.Sort) {
-                throw RuntimeException("Pi body is not a type")
-            }
+            val body = normalize(env, typeOf(env, ctx + term.t, term.body))
+            if (body !is Term.Sort) throw RuntimeException("Pi body is not a type")
 
             Term.Sort(max(t.uni, body.uni))
         }
 
         is Term.Abs -> {
-            val t = typeOf(env, ctx, term.t)
-            if (t !is Term.Sort) {
-                throw RuntimeException("Lambda parameter type is not a type")
-            }
+            val t = normalize(env, typeOf(env, ctx, term.t))
+            if (t !is Term.Sort) throw RuntimeException("Lambda parameter type is not a type: $t -> " + term.t)
 
             val body = typeOf(env, ctx + term.t, term.body)
 
@@ -158,27 +121,12 @@ fun typeOf(
         }
 
         is Term.App -> {
-            println("[typeof-app] term -> " + term)
-            
-            val f = typeOf(env, ctx, term.f)
-
-            println("[typeof-app] f -> " + f)
-
-            if (f !is Term.Pi) {
-                throw RuntimeException("Applying non-function")
-            }
+            val f = normalize(env, typeOf(env, ctx, term.f))
+            if (f !is Term.Pi) throw RuntimeException("Applying non-function")
 
             val arg = typeOf(env, ctx, term.arg)
+            if (!cmp(env, arg, f.t)) throw RuntimeException("Argument type mismatch: $arg != " + f.t)
 
-            println("[typeof-app] (arg) -> " + arg)
-
-            println("[typeof-app] (whnf(env, f.t)) -> " + whnf(env, f.t))
-            println("[typeof-app] (normalize(env, f.t)) -> " + normalize(env, f.t))
-
-            if (!cmp(env, arg, f.t)) {
-                throw RuntimeException("Argument type mismatch: $arg != " + f.t)
-            }
-
-            normalize(env, subst(f.body, 0, shift(term.arg, 1)))
+            normalize(env, subst(f.body, 0, term.arg))
         }
     }
