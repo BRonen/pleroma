@@ -8,26 +8,45 @@
   (+ 2 (- 3 1) (* 2 4) (/ 5 5))
   (print "")
 
-  (let ((String foo "example")
+  (let [(String foo "example")
         (Int bar 1234)
-        (Boolean baz true))
+        (Boolean baz true)]
     (println foo bar baz))
 
   (eq (do (+ 1 2)
           (- 3 2)) 1)
 
-  (defn hello ((String ts)) String
+  (defn hello {ts String} String
     (println "Hello, " ts "!")
     name)
+
+  (defmeta identity-macro [t]
+    (quote (fn {x t} x)))
+
+  (defn my-id {}
+    (identity-macro Int))
 
   (hello "demiurge"))
 
 #+END_SRC
 
 #+RESULTS:
-: (Seq(elements=[Sym(value=defmod, loc=Location(line=2, column=1, size=6)), Sym(value=basics, loc=Location(line=2, column=8, size=6)), Seq(elements=[Sym(value=+, loc=Location(line=3, column=3, size=1)), Num(value=2, loc=Location(line=3, column=5, size=1)), Seq(elements=[Sym(value=-, loc=Location(line=3, column=8, size=1)), Num(value=3, loc=Location(line=3, column=10, size=1)), Num(value=1, loc=Location(line=3, column=12, size=1))]), Seq(elements=[Sym(value=*, loc=Location(line=3, column=16, size=1)), Num(value=2, loc=Location(line=3, column=18, size=1)), Num(value=4, loc=Location(line=3, column=20, size=1))]), Seq(elements=[Sym(value=/, loc=Location(line=3, column=24, size=1)), Num(value=5, loc=Location(line=3, column=26, size=1)), Num(value=5, loc=Location(line=3, column=28, size=1))])]), Seq(elements=[Sym(value=print, loc=Location(line=4, column=3, size=5)), Str(value=, loc=Location(line=4, column=10, size=2))]), Seq(elements=[Sym(value=let, loc=Location(line=6, column=3, size=3)), Seq(elements=[Seq(elements=[Sym(value=String, loc=Location(line=6, column=9, size=6)), Sym(value=foo, loc=Location(line=6, column=16, size=3)), Str(value=example, loc=Location(line=6, column=21, size=9))]), Seq(elements=[Sym(value=Int, loc=Location(line=7, column=9, size=3)), Sym(value=bar, loc=Location(line=7, column=13, size=3)), Num(value=1234, loc=Location(line=7, column=17, size=4))]), Seq(elements=[Sym(value=Boolean, loc=Location(line=8, column=9, size=7)), Sym(value=baz, loc=Location(line=8, column=17, size=3)), Sym(value=true, loc=Location(line=8, column=21, size=4))])]), Seq(elements=[Sym(value=println, loc=Location(line=9, column=5, size=7)), Sym(value=foo, loc=Location(line=9, column=13, size=3)), Sym(value=bar, loc=Location(line=9, column=17, size=3)), Sym(value=baz, loc=Location(line=9, column=21, size=3))])]), Seq(elements=[Sym(value=eq, loc=Location(line=11, column=3, size=2)), Seq(elements=[Sym(value=do, loc=Location(line=11, column=7, size=2)), Seq(elements=[Sym(value=+, loc=Location(line=11, column=11, size=1)), Num(value=1, loc=Location(line=11, column=13, size=1)), Num(value=2, loc=Location(line=11, column=15, size=1))]), Seq(elements=[Sym(value=-, loc=Location(line=12, column=11, size=1)), Num(value=3, loc=Location(line=12, column=13, size=1)), Num(value=2, loc=Location(line=12, column=15, size=1))])]), Num(value=1, loc=Location(line=12, column=19, size=1))]), Seq(elements=[Sym(value=defn, loc=Location(line=14, column=3, size=4)), Sym(value=hello, loc=Location(line=14, column=8, size=5)), Seq(elements=[Seq(elements=[Sym(value=String, loc=Location(line=14, column=16, size=6)), Sym(value=ts, loc=Location(line=14, column=23, size=2))])]), Sym(value=String, loc=Location(line=14, column=28, size=6)), Seq(elements=[Sym(value=println, loc=Location(line=15, column=5, size=7)), Str(value=Hello, , loc=Location(line=15, column=14, size=9)), Sym(value=ts, loc=Location(line=15, column=16, size=2)), Str(value=!, loc=Location(line=15, column=20, size=3))]), Sym(value=name, loc=Location(line=16, column=4, size=4))]), Seq(elements=[Sym(value=hello, loc=Location(line=18, column=3, size=5)), Str(value=demiurge, loc=Location(line=18, column=10, size=10))])]), [])
-:
+: (Seq(elements=[Sym(value=defmod, loc=Location(line=2, column=1, size=6)), Sym(value=basics, loc=Location(line=2, column=8, size=6)), Seq(elements=[Sym(value=+, loc=Location(line=3, column=3, size=1)), Num(value=2, loc=Location(line=3, column=5, size=1)), Seq(elements=[Sym(value=-, loc=Location(line=3, column=8, size=1)), Num(value=3, loc=Location(line=3, column=10, size=1)), Num(value=1, loc=Location(line=3, column=12, size=1))]), Seq(elements=[Sym(value=*, loc=Location(line=3, column=16, size=1)), Num(value=2, loc=Location(line=3, column=18, size=1)), Num(value=4, loc=Location(line=3, column=20, size=1))]), Seq(elements=[Sym(value=/, loc=Location(line=3, column=24, size=1)), Num(value=5, loc=Location(line=3, column=26, size=1)), Num(value=5, loc=Location(line=3, column=28, size=1))])]), Seq(elements=[Sym(value=print, loc=Location(line=4, column=3, size=5)), Str(value=, loc=Location(line=4, column=10, size=2))]), Seq(elements=[Sym(value=let, loc=Location(line=6, column=3, size=3)), Vec(elements=[Seq(elements=[Sym(value=String, loc=Location(line=6, column=9, size=6)), Sym(value=foo, loc=Location(line=6, column=16, size=3)), Str(value=example, loc=Location(line=6, column=21, size=9))]), Seq(elements=[Sym(value=Int, loc=Location(line=7, column=9, size=3)), Sym(value=bar, loc=Location(line=7, column=13, size=3)), Num(value=1234, loc=Location(line=7, column=17, size=4))]), Seq(elements=[Sym(value=Boolean, loc=Location(line=8, column=9, size=7)), Sym(value=baz, loc=Location(line=8, column=17, size=3)), Sym(value=true, loc=Location(line=8, column=21, size=4))])]), Seq(elements=[Sym(value=println, loc=Location(line=9, column=5, size=7)), Sym(value=foo, loc=Location(line=9, column=13, size=3)), Sym(value=bar, loc=Location(line=9, column=17, size=3)), Sym(value=baz, loc=Location(line=9, column=21, size=3))])]), Seq(elements=[Sym(value=eq, loc=Location(line=11, column=3, size=2)), Seq(elements=[Sym(value=do, loc=Location(line=11, column=7, size=2)), Seq(elements=[Sym(value=+, loc=Location(line=11, column=11, size=1)), Num(value=1, loc=Location(line=11, column=13, size=1)), Num(value=2, loc=Location(line=11, column=15, size=1))]), Seq(elements=[Sym(value=-, loc=Location(line=12, column=11, size=1)), Num(value=3, loc=Location(line=12, column=13, size=1)), Num(value=2, loc=Location(line=12, column=15, size=1))])]), Num(value=1, loc=Location(line=12, column=19, size=1))]), Seq(elements=[Sym(value=defn, loc=Location(line=14, column=3, size=4)), Sym(value=hello, loc=Location(line=14, column=8, size=5)), Map(elements=[Sym(value=ts, loc=Location(line=14, column=15, size=2)), Sym(value=String, loc=Location(line=14, column=18, size=6))]), Sym(value=String, loc=Location(line=14, column=26, size=6)), Seq(elements=[Sym(value=println, loc=Location(line=15, column=5, size=7)), Str(value=Hello, , loc=Location(line=15, column=14, size=9)), Sym(value=ts, loc=Location(line=15, column=16, size=2)), Str(value=!, loc=Location(line=15, column=20, size=3))]), Sym(value=name, loc=Location(line=16, column=4, size=4))]), Seq(elements=[Sym(value=defmeta, loc=Location(line=18, column=3, size=7)), Sym(value=identity-macro, loc=Location(line=18, column=11, size=14)), Vec(elements=[Sym(value=t, loc=Location(line=18, column=27, size=1))]), Seq(elements=[Sym(value=quote, loc=Location(line=19, column=5, size=5)), Seq(elements=[Sym(value=fn, loc=Location(line=19, column=12, size=2)), Map(elements=[Sym(value=x, loc=Location(line=19, column=16, size=1)), Sym(value=t, loc=Location(line=19, column=18, size=1))]), Sym(value=x, loc=Location(line=19, column=21, size=1))])])]), Seq(elements=[Sym(value=defn, loc=Location(line=21, column=3, size=4)), Sym(value=my-id, loc=Location(line=21, column=8, size=5)), Map(elements=[]), Seq(elements=[Sym(value=identity-macro, loc=Location(line=22, column=5, size=14)), Sym(value=Int, loc=Location(line=22, column=20, size=3))])]), Seq(elements=[Sym(value=hello, loc=Location(line=24, column=3, size=5)), Str(value=demiurge, loc=Location(line=24, column=10, size=10))])]), [])
+: 
 : Process pleroma finished
+
+#+BEGIN_SRC elisp
+(define-derived-mode pleroma-mode prog-mode "Pleroma"
+  "Major mode for editing Pleroma source code."
+  (setq font-lock-defaults
+        '((("defn\\|defmeta\\|defmod\\|def\\|fn\\|quote\\|let\\|println\\|do" . font-lock-keyword-face)
+           ("\".*\"" . font-lock-string-face)))))
+
+(add-to-list 'org-src-lang-modes '("pleroma" . pleroma))
+#+END_SRC
+
+#+RESULTS:
+: ((pleroma . pleroma) (md . markdown) (rust . rustic) (beamer . LaTeX) (latex . LaTeX) (C . c) (C++ . c++) (asymptote . asy) (beamer . latex) (calc . fundamental) (cpp . c++) (ditaa . artist) (desktop . conf-desktop) (dot . fundamental) (elisp . emacs-lisp) (ocaml . tuareg) (screen . shell-script) (sqlite . sql) (toml . conf-toml) (shell . sh) (ash . sh) (sh . sh) (bash . sh) (jsh . sh) (bash2 . sh) (dash . sh) (dtksh . sh) (ksh . sh) (es . sh) (rc . sh) (itcsh . sh) (tcsh . sh) (jcsh . sh) (csh . sh) (ksh88 . sh) (oash . sh) (pdksh . sh) (mksh . sh) (posix . sh) (wksh . sh) (wsh . sh) (zsh . sh) (rpm . sh))
 
 #+BEGIN_SRC elisp
 (defun org-babel-execute:pleroma (body params)
