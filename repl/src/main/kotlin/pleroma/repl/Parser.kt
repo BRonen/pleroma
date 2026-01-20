@@ -1,6 +1,6 @@
 package pleroma.repl
 
-import pleroma.aether
+import pleroma.aether.*
 
 sealed class Expr {
     data class Num(val value: Int, val loc: Location) : Expr()
@@ -9,11 +9,11 @@ sealed class Expr {
 
     data class Sym(val value: String, val loc: Location) : Expr()
 
-    data class Quote(val expr: Expr, val loc: Location) : Expr()
+    data class Quote(val expr: Expr) : Expr()
 
-    data class Splice(val expr: Expr, val loc: Location) : Expr()
+    data class Splice(val expr: Expr) : Expr()
 
-    data class Map(val elements: Map<String, Expr>, val loc: Location) : Expr()
+    data class Dict(val elements: Map<String, Expr>, val loc: Location) : Expr()
 
     data class Seq(val elements: List<Expr>, val loc: Location) : Expr()
 
@@ -49,7 +49,7 @@ fun cparser(tokens: List<Token>): Pair<Expr, List<Token>> {
             is Token.Num -> Expr.Num(f.value, f.loc) to tokens.drop(1)
             is Token.SQuote -> {
                 val (expr, rst) = cparser(tokens.drop(1))
-                Expr.Quoted(expr) to rst
+                Expr.Quote(expr) to rst
             }
             is Token.Tilde -> {
                 val (expr, rst) = cparser(tokens.drop(1))
@@ -69,14 +69,18 @@ fun cparser(tokens: List<Token>): Pair<Expr, List<Token>> {
                 )
             is Token.LCurly -> {
                 var rest = tokens.drop(1)
-                val elements = mutableMapOf<Expr>()
-                var currentKey: Token? = null
+                val elements = mutableMapOf<String, Expr>()
+                var currentKey: String? = null
 
                 while (rest.isNotEmpty() && rest.first() !is Token.RCurly) {
                     val (expr, next) = cparser(rest)
 
                     if (currentKey == null) {
-                        currentKey = expr
+                        if (expr is Expr.Sym) {
+                            currentKey = expr.value
+                        } else {
+                            throw RuntimeException("Trying invalid expr as key on a map: $currentKey")
+                        }
                     } else {
                         elements[currentKey] = expr
                         currentKey = null
@@ -85,11 +89,11 @@ fun cparser(tokens: List<Token>): Pair<Expr, List<Token>> {
                     rest = next
                 }
 
-                if (rest.isEmpty()) {
-                    throw RuntimeException("unexpected EOF: " + f.loc)
-                }
+                if (currentKey != null) throw RuntimeException("Invalid number of elements on map: $currentKey")
 
-                return Expr.Map(elements, f.loc) to rest.drop(1)
+                if (rest.isEmpty()) throw RuntimeException("unexpected EOF: $f")
+
+                return Expr.Dict(mapOf<String, Expr>() + elements, f.loc) to rest.drop(1)
             }
             else -> throw RuntimeException("Invalid token received")
         }

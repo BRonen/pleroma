@@ -1,5 +1,7 @@
 package pleroma.repl
 
+import pleroma.aether.*
+
 enum class Level { OBJECT, META }
 
 data class Definition(val name: String, val level: Level, val term: Term)
@@ -12,8 +14,8 @@ class Resolver(
 
     fun withDef(
         name: String,
-        value: Term,
-    ) = Resolver(definitions + mapOf(name to value))
+        v: Definition,
+    ) = Resolver(definitions + mapOf(name to v))
 }
 
 fun parseSequence(
@@ -22,28 +24,27 @@ fun parseSequence(
 ): Term {
     val head = elements.first()
 
-    if (head !is Expr.Sym) throw RuntimeException("Expected symbol: " + head.loc)
+    if (head == null) throw RuntimeException("Empty sequence")
+    if (head !is Expr.Sym) throw RuntimeException("Expected symbol: " + head)
 
     return when (head.value) {
         "fn" -> {
             val params = elements[1]
 
-            if (params !is Expr.Map) throw RuntimeException("Expected Map: " + params.loc)
+            if (params !is Expr.Dict) throw RuntimeException("Expected Map: " + params)
 
-            var body = elements[2]
+            val body = parse(elements[2], res)
 
-            for ((n, t) in params) {
-                body = Term.Abs(t, parse(body, res.withLocal(n)))
+            params.elements.entries.fold(body) { acc, (n, t) ->
+                Term.Abs(parse(t, res), acc)
             }
-
-            body
         }
         "quote" -> Term.Quote(parse(elements[1], res))
         "splice" -> Term.Splice(parse(elements[1], res))
         else -> {
             val definition = res.definitions[head.value]
 
-            if (definition == null) throw RuntimeException("Definition " + head.value + " not found at " + head.loc)
+            if (definition == null) throw RuntimeException("Definition not found: " + head)
 
             elements.drop(1).fold(parse(head, res)) { acc, arg ->
                 if (definition.level == Level.META) {
@@ -79,6 +80,28 @@ fun parse(
         else -> throw RuntimeException("Unsupported")
     }
 
+fun expandMacros(
+    term: Term,
+    env: Env,
+): Term =
+    when (term) {
+        is Term.Exp -> {
+            val definition = env[term.name]
+
+            if (definition == null) throw RuntimeException("Macro not found: " + term)
+
+            val applied = term.args.fold(definition.value) { acc, arg -> Term.App(acc, arg) }
+
+            val result = normalize(env, applied)
+
+            if (result is Term.Quote) result.expr else result
+        }
+        is Term.Pi -> Term.Pi(expandMacros(env, term.t), expandMacros(env, term.body))
+        is Term.Abs -> Term.Abs(expandMacros(env, term.t), expandMacros(env, term.body))
+        is Term.App -> Term.App(expandMacros(env, term.f), expandMacros(env, term.arg))
+        else -> term
+    }
+
 fun parseModule(forms: List<Expr>) {
     val res = Resolver()
     val env = mapOf<String, EnvEntry>()
@@ -88,12 +111,34 @@ fun parseModule(forms: List<Expr>) {
 
         val head = form.elements[0]
 
-        if (head !is Expr.Sym) throw RuntimeException("Trying to call a non-symbol at " + head.loc)
+        if (head !is Expr.Sym) throw RuntimeException("Trying to call a non-symbol at " + head)
 
-        when (head) {
+        when (head.value) {
             "defmeta" -> {
+                val name = form.elements[1]
+
+                if (name !is Expr.Sym) throw RuntimeException("Trying to name a non-symbol at " + name)
+
+                val body = parse(form.elements.last(), res)
+
+                val type = typeOf(env, listOf(), body)
+
+                res.definitions[name.value] = Definition(name.value, DefType.META, body)
+                env[name.value] = EnvEntry(type, body)
             }
             "defn" -> {
+                val name = form.elements[1]
+
+                if (name !is Expr.Sym) throw RuntimeException("Trying to name a non-symbol at " + name)
+
+                var body = parse(form.elements.last(), res)
+
+                body = expandMacros(body, env)
+
+                val type = typeOf(env, listOf(), body)
+
+                res.definitions[name.value] = Definition(name.value, DefType.OBJECT, body)
+                env[name.value] = EnvEntry(type, body)
             }
         }
     }
