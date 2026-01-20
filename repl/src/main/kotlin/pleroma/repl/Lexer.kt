@@ -21,6 +21,8 @@ sealed class Token {
 
     data class SQuote(val loc: Location) : Token()
 
+    data class Tilde(val loc: Location) : Token()
+
     data class Num(val value: Int, val loc: Location) : Token()
 
     data class Sym(val value: String, val loc: Location) : Token()
@@ -36,6 +38,7 @@ sealed class Token {
             is LSquare -> "["
             is RSquare -> "]"
             is SQuote -> "\'"
+            is Tilde -> "~"
             is Num -> value.toString()
             is Sym -> value
             is Str -> "\"$value\""
@@ -122,6 +125,7 @@ fun tokenize(
         ch == ']' -> emitSimple(state) { Token.RSquare(it) }
 
         ch == '\'' -> emitSimple(state) { Token.SQuote(it) }
+        ch == '~' -> emitSimple(state) { Token.Tilde(it) }
 
         else -> {
             val st = updateLocation(state, ch)

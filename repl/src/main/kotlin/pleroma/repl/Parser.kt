@@ -1,5 +1,7 @@
 package pleroma.repl
 
+import pleroma.aether
+
 sealed class Expr {
     data class Num(val value: Int, val loc: Location) : Expr()
 
@@ -7,13 +9,15 @@ sealed class Expr {
 
     data class Sym(val value: String, val loc: Location) : Expr()
 
-    data class Quoted(val value: Expr) : Expr()
+    data class Quote(val expr: Expr, val loc: Location) : Expr()
 
-    data class Map(val elements: List<Expr>) : Expr()
+    data class Splice(val expr: Expr, val loc: Location) : Expr()
 
-    data class Seq(val elements: List<Expr>) : Expr()
+    data class Map(val elements: Map<String, Expr>, val loc: Location) : Expr()
 
-    data class Vec(val elements: List<Expr>) : Expr()
+    data class Seq(val elements: List<Expr>, val loc: Location) : Expr()
+
+    data class Vec(val elements: List<Expr>, val loc: Location) : Expr()
 }
 
 fun parseSequence(
@@ -47,58 +51,48 @@ fun cparser(tokens: List<Token>): Pair<Expr, List<Token>> {
                 val (expr, rst) = cparser(tokens.drop(1))
                 Expr.Quoted(expr) to rst
             }
+            is Token.Tilde -> {
+                val (expr, rst) = cparser(tokens.drop(1))
+                Expr.Splice(expr) to rst
+            }
             is Token.LParen ->
                 parseSequence(
                     tokens.drop(1),
                     closing = { it is Token.RParen },
-                    makeExpr = { Expr.Seq(it) },
-                )
-            is Token.LCurly ->
-                parseSequence(
-                    tokens.drop(1),
-                    closing = { it is Token.RCurly },
-                    makeExpr = { Expr.Map(it) },
+                    makeExpr = { Expr.Seq(it, f.loc) },
                 )
             is Token.LSquare ->
                 parseSequence(
                     tokens.drop(1),
                     closing = { it is Token.RSquare },
-                    makeExpr = { Expr.Vec(it) },
+                    makeExpr = { Expr.Vec(it, f.loc) },
                 )
+            is Token.LCurly -> {
+                var rest = tokens.drop(1)
+                val elements = mutableMapOf<Expr>()
+                var currentKey: Token? = null
+
+                while (rest.isNotEmpty() && rest.first() !is Token.RCurly) {
+                    val (expr, next) = cparser(rest)
+
+                    if (currentKey == null) {
+                        currentKey = expr
+                    } else {
+                        elements[currentKey] = expr
+                        currentKey = null
+                    }
+
+                    rest = next
+                }
+
+                if (rest.isEmpty()) {
+                    throw RuntimeException("unexpected EOF: " + f.loc)
+                }
+
+                return Expr.Map(elements, f.loc) to rest.drop(1)
+            }
             else -> throw RuntimeException("Invalid token received")
         }
 
     return expr
 }
-
-sealed class Obj {
-    data class Def(val name: String, val params: List<String>, val body: Meta) : Expr()
-
-    data class App(val callee: Obj, val args: List<Obj>) : Expr()
-
-    data class Num(val value: Int) : Expr()
-
-    data class Sym(val value: String) : Expr()
-
-    data class Str(val value: String) : Expr()
-
-    data class Splice(val code: Meta.Code) : Obj()
-}
-
-sealed class Meta {
-    data class Def(val name: String, val params: List<String>, val body: Meta) : Meta()
-
-    data class App(val callee: Meta, val args: List<Meta>) : Meta()
-
-    data class Quote(val body: Code) : Meta()
-
-    data class Parse(val body: Syntax) : Meta()
-
-    data class Syntax(val value: Expr) : Meta()
-
-    data class Code(val value: Obj, val type: String) : Meta()
-}
-
-data class MetaEnv(
-    val metaDefs: Set<String> = emptySet(),
-)
