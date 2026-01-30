@@ -150,4 +150,21 @@ class AetherTest {
             typeOf(mapOf(), listOf(), Term.Abs(Term.Sort(1), Term.Abs(Term.Sort(0), Term.Abs(Term.Var(0), Term.Var(0))))),
         )
     }
+
+    @Test fun typeAlias() {
+        val env =
+            mapOf(
+                "number" to EnvEntry(Term.Sort(0)),
+                "custom" to EnvEntry(Term.Sort(0), Term.Const("number")),
+            )
+
+        assertEquals(
+            Term.Const("number"),
+            typeOf(
+                env,
+                listOf(),
+                Term.App(Term.Abs(Term.Const("custom"), Term.Var(0)), Term.Num(42)),
+            ),
+        )
+    }
 }

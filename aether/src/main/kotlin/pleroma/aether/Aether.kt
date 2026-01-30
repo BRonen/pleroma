@@ -18,6 +18,14 @@ sealed class Term {
     data class Abs(val t: Term, val body: Term) : Term()
 
     data class App(val f: Term, val arg: Term) : Term()
+
+    data class Exp(val n: String, val arg: Term) : Term()
+
+    data class Code(val t: Term) : Term()
+
+    data class Quote(val term: Term) : Term()
+
+    data class Splice(val term: Term) : Term()
 }
 
 typealias Ctx = List<Term>
@@ -129,4 +137,6 @@ fun typeOf(
 
             normalize(env, subst(f.body, 0, term.arg))
         }
+
+        else -> throw RuntimeException("todo")
     }

@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     implementation("org.apache.commons:commons-text")
-    implementation(project(":utils"))
+    implementation(project(":aether"))
 }
 
 application {
